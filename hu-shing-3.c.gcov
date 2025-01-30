@@ -1,0 +1,421 @@
+        -:    0:Source:hu-shing-3.c
+        -:    0:Graph:hu-shing-3.gcno
+        -:    0:Data:hu-shing-3.gcda
+        -:    0:Runs:3
+        -:    1://Hu-Shing method of Matrix Chain Optimization
+        -:    2://Implemented in C by Kathiravan - CS22B2052
+        -:    3:#include <stdio.h>
+        -:    4:#include <stdlib.h>
+        -:    5:#include <string.h>
+        -:    6:#include <limits.h>
+        -:    7:#include <assert.h>
+        -:    8:#include <stdbool.h>
+        -:    9:
+        -:   10:#define ll long long
+        -:   11:#define testsize 5000000  //input array size. mind the size, since it must be malloc-ed
+        -:   12:                          // for testsize = 5,000,000, approx 5.6 GB of RAM is used. 
+        -:   13:#define DEBUG false
+        -:   14:
+        -:   15:
+        -:   16://gcc hu-shing-3.c -pg -o hu-shing-3 && ./hu-shing-3 && gprof hu-shing-3 gmon.out > hsc3_gprof_report.txt && cat hsc3_gprof_report.txt
+        -:   17:
+        -:   18:typedef struct {
+        -:   19:    int id, u, v, low;
+        -:   20:    ll base, mul, num, den;
+        -:   21:} HArc;
+        -:   22:
+        -:   23:typedef struct {
+        -:   24:    int size;
+        -:   25:    int capacity;
+        -:   26:    HArc* data;
+        -:   27:} PriorityQueue;
+        -:   28:
+        -:   29:typedef struct {
+        -:   30:    int size;
+        -:   31:    int capacity;
+        -:   32:    int* data;
+        -:   33:} IntVector;
+        -:   34:
+        -:   35:typedef struct {
+        -:   36:    int size;
+        -:   37:    int capacity;
+        -:   38:    HArc* data;
+        -:   39:} HArcVector;
+        -:   40:
+        -:   41:int n;
+        -:   42:ll *w, *CP;
+        -:   43:HArc *h;
+        -:   44:int *sub, *qid;
+        -:   45:int n_arcs;
+        -:   46:int n_pqs;
+        -:   47:IntVector *child;
+        -:   48:PriorityQueue *pq;
+        -:   49:HArcVector *con;
+        -:   50:
+        -:   51:
+ 15000006:   52:void initPriorityQueue(PriorityQueue* pq) {
+ 15000006:   53:    pq->size = 0;
+ 15000006:   54:    pq->capacity = 10;
+ 15000006:   55:    pq->data = (HArc*)malloc(pq->capacity * sizeof(HArc));
+ 15000006:   56:}
+        -:   57:
+ 20821437:   58:void pushPriorityQueue(PriorityQueue* pq, HArc arc) {
+ 20821437:   59:    if (pq->size == pq->capacity) {
+    36414:   60:        pq->capacity *= 2;
+    36414:   61:        pq->data = (HArc*)realloc(pq->data, pq->capacity * sizeof(HArc));
+        -:   62:    }
+ 20821437:   63:    pq->data[pq->size++] = arc;
+        -:   64:    //if(arc.den == 0) arc.den = 1; //added to solve FPE
+        -:   65:    // Simple insertion sort for priority queue (can be optimized)
+6975173223:   66:    for (int i = pq->size - 1; i > 0; i--) {
+        -:   67:        //if (pq->data[i].den == 0 || pq->data[i-1].den == 0) continue; //also for FPE
+6959352699:   68:        if (pq->data[i].num / pq->data[i].den < pq->data[i - 1].num / pq->data[i - 1].den) {
+6954351786:   69:            HArc temp = pq->data[i];
+6954351786:   70:            pq->data[i] = pq->data[i - 1];
+6954351786:   71:            pq->data[i - 1] = temp;
+        -:   72:        } else {
+  5000913:   73:            break;
+        -:   74:        }
+        -:   75:    }
+ 20821437:   76:}
+        -:   77:
+ 80572638:   78:HArc topPriorityQueue(PriorityQueue* pq) {
+ 80572638:   79:    return pq->data[0];
+        -:   80:}
+        -:   81:
+ 20821437:   82:void popPriorityQueue(PriorityQueue* pq) {
+18257840646:   83:    for (int i = 1; i < pq->size; i++) {
+18237019209:   84:        pq->data[i - 1] = pq->data[i];
+        -:   85:    }
+ 20821437:   86:    pq->size--;
+ 20821437:   87:}
+        -:   88:
+ 45508173:   89:int emptyPriorityQueue(PriorityQueue* pq) {
+ 45508173:   90:    return pq->size == 0;
+        -:   91:}
+        -:   92:
+ 15000012:   93:void initIntVector(IntVector* vec) {
+ 15000012:   94:    vec->size = 0;
+ 15000012:   95:    vec->capacity = 10;
+ 15000012:   96:    vec->data = (int*)malloc(vec->capacity * sizeof(int));
+ 15000012:   97:}
+        -:   98:
+ 44684904:   99:void pushIntVector(IntVector* vec, int value) {
+ 44684904:  100:    if (vec->size == vec->capacity) {
+      117:  101:        vec->capacity *= 2;
+      117:  102:        vec->data = (int*)realloc(vec->data, vec->capacity * sizeof(int));
+        -:  103:    }
+ 44684904:  104:    vec->data[vec->size++] = value;
+ 44684904:  105:}
+        -:  106:
+ 29842443:  107:void popIntVector(IntVector* vec) {
+ 29842443:  108:    if (vec->size > 0) {
+ 29842443:  109:        vec->size--;
+        -:  110:    }
+ 29842443:  111:}
+        -:  112:
+ 15000006:  113:void initHArcVector(HArcVector* vec) {
+ 15000006:  114:    vec->size = 0;
+ 15000006:  115:    vec->capacity = 10;
+ 15000006:  116:    vec->data = (HArc*)malloc(vec->capacity * sizeof(HArc));
+ 15000006:  117:}
+        -:  118:
+ 29684910:  119:void pushHArcVector(HArcVector* vec, HArc arc) {
+ 29684910:  120:    if (vec->size == vec->capacity) {
+      540:  121:        vec->capacity *= 2;
+      540:  122:        vec->data = (HArc*)realloc(vec->data, vec->capacity * sizeof(HArc));
+        -:  123:    }
+ 29684910:  124:    vec->data[vec->size++] = arc;
+ 29684910:  125:}
+        -:  126:
+ 29023614:  127:void popHArcVector(HArcVector* vec) {
+ 29023614:  128:    vec->size--;
+ 29023614:  129:}
+        -:  130:
+ 14842455:  131:void new_arc(int u, int v) {
+14842455*:  132:    assert(u <= v);
+ 14842455:  133:    n_arcs++;
+ 14842455:  134:    h[n_arcs].id = n_arcs;
+ 14842455:  135:    h[n_arcs].u = u;
+ 14842455:  136:    h[n_arcs].v = v;
+ 14842455:  137:    h[n_arcs].low = w[u] < w[v] ? u : v;
+ 14842455:  138:    h[n_arcs].mul = (ll)w[u] * w[v];
+ 14842455:  139:    h[n_arcs].base = CP[v] - CP[u] - h[n_arcs].mul;
+ 14842455:  140:}
+        -:  141:
+        3:  142:void build_tree(int lst[][2], int lst_size) {
+        -:  143:    IntVector stk;
+        3:  144:    initIntVector(&stk);
+        3:  145:    new_arc(1, n + 1); // h[1] is root
+ 14842455:  146:    for (int i = 0; i < lst_size; i++) {
+ 14842452:  147:        new_arc(lst[i][0], lst[i][1]);
+ 29529045:  148:        while (stk.size > 0 && h[n_arcs].u <= h[stk.data[stk.size - 1]].u && h[n_arcs].v >= h[stk.data[stk.size - 1]].v) {
+ 14686593:  149:            pushIntVector(&child[n_arcs], stk.data[stk.size - 1]);
+ 14686593:  150:            popIntVector(&stk); // Fixed: popIntVector is now defined
+        -:  151:        }
+ 14842452:  152:        pushIntVector(&stk, n_arcs);
+        -:  153:    }
+   155862:  154:    while (stk.size > 0) {
+   155859:  155:        pushIntVector(&child[1], stk.data[stk.size - 1]);
+   155859:  156:        popIntVector(&stk); // Fixed: popIntVector is now defined
+        -:  157:    }
+        3:  158:    free(stk.data);
+        3:  159:}
+        -:  160:
+        3:  161:void one_sweep(int lst[][2], int* lst_size, int size) {
+        -:  162:    IntVector stk;
+        3:  163:    initIntVector(&stk);
+        3:  164:    int (*tmp)[2] = (int (*)[2])malloc(size * sizeof(int[2]));
+        3:  165:    int tmp_size = 0;
+ 15000003:  166:    for (int i = 1; i <= n; i++) {
+ 29842473:  167:        while (stk.size >= 2 && w[stk.data[stk.size - 1]] > w[i]) {
+ 14842473:  168:            tmp[tmp_size][0] = stk.data[stk.size - 2];
+ 14842473:  169:            tmp[tmp_size][1] = i;
+ 14842473:  170:            tmp_size++;
+ 14842473:  171:            popIntVector(&stk);
+        -:  172:        }
+ 15000000:  173:        pushIntVector(&stk, i);
+        -:  174:    }
+   157521:  175:    while (stk.size >= 4) {
+   157518:  176:        int Vt_1 = stk.data[stk.size - 2];
+   157518:  177:        tmp[tmp_size][0] = 1;
+   157518:  178:        tmp[tmp_size][1] = Vt_1;
+   157518:  179:        tmp_size++;
+   157518:  180:        popIntVector(&stk);
+        -:  181:    }
+        3:  182:    *lst_size = 0;
+ 14999994:  183:    for (int i = 0; i < tmp_size; i++) {
+ 14999991:  184:        if (tmp[i][0] == 1 || tmp[i][1] == 1) continue;
+ 14842452:  185:        lst[*lst_size][0] = tmp[i][0];
+ 14842452:  186:        lst[*lst_size][1] = tmp[i][1];
+ 14842452:  187:        (*lst_size)++;
+        -:  188:    }
+        3:  189:    free(tmp);
+        3:  190:    free(stk.data);
+        3:  191:}
+        -:  192:
+        3:  193:void prepare(int size) {
+        3:  194:    int V1 = 1;
+ 15000000:  195:    for (int i = 2; i <= n; i++) {
+ 14999997:  196:        if (w[i] < w[V1]) V1 = i;
+        -:  197:    }
+        -:  198:    // Rotate w so that w[1] is the smallest
+        3:  199:    ll *temp = (ll*)malloc(size * sizeof(ll));
+       3*:  200:    if(temp == NULL) printf("Malloc Failed for Temp in void prepare\n");
+ 15000003:  201:    for (int i = 1; i <= n; i++) {
+ 15000000:  202:        temp[i] = w[i];
+        -:  203:    }
+ 14999370:  204:    for (int i = V1; i <= n; i++) {
+ 14999367:  205:        w[i - V1 + 1] = temp[i];
+        -:  206:    }
+      636:  207:    for (int i = 1; i < V1; i++) {
+      633:  208:        w[n - V1 + 1 + i] = temp[i];
+        -:  209:    }
+        3:  210:    w[n + 1] = w[1];
+ 15000006:  211:    for (int i = 1; i <= n + 1; i++) {
+ 15000003:  212:        CP[i] = (ll)w[i] * w[i - 1];
+ 15000003:  213:        CP[i] += CP[i - 1];
+        -:  214:    }
+        3:  215:    free(temp);
+        3:  216:}
+        -:  217:
+ 19870215:  218:ll get_mn_mul(int node) {
+ 19870215:  219:    if (node == 1) return (ll)w[1] * w[2] + (ll)w[1] * w[n];
+ 19870212:  220:    HArc* cur = &h[node];
+ 19870212:  221:    if (cur->u == cur->low) {
+  9154137:  222:        if (con[cur->u].size == 0 || cur->u > con[cur->u].data[con[cur->u].size - 1].u || cur->v < con[cur->u].data[con[cur->u].size - 1].v) {
+  5760921:  223:            return (ll)w[cur->u] * w[cur->u + 1];
+        -:  224:        } else {
+  3393216:  225:            return con[cur->u].data[con[cur->u].size - 1].mul;
+        -:  226:        }
+        -:  227:    } else {
+ 10716075:  228:        if (con[cur->v].size == 0 || cur->u > con[cur->v].data[con[cur->v].size - 1].u || cur->v < con[cur->v].data[con[cur->v].size - 1].v) {
+  6236664:  229:            return (ll)w[cur->v] * w[cur->v - 1];
+        -:  230:        } else {
+  4479411:  231:            return con[cur->v].data[con[cur->v].size - 1].mul;
+        -:  232:        }
+        -:  233:    }
+        -:  234:    assert(0); // never happens
+        -:  235:    return 0;
+        -:  236:}
+        -:  237:
+ 14842455:  238:void add_arc(int cur_node, HArc* arc) {
+14842455*:  239:    if(arc->den == 0) arc->den = 1;  //added for FPE, might tamper with output results
+ 14842455:  240:    pushPriorityQueue(&pq[qid[cur_node]], *arc);
+ 14842455:  241:    pushHArcVector(&con[arc->u], *arc);
+ 14842455:  242:    pushHArcVector(&con[arc->v], *arc);
+ 14842455:  243:}
+        -:  244:
+ 14511807:  245:void remove_arc(int cur_node) {
+ 14511807:  246:    HArc hm = topPriorityQueue(&pq[qid[cur_node]]);
+ 14511807:  247:    popHArcVector(&con[hm.u]);
+ 14511807:  248:    popHArcVector(&con[hm.v]);
+ 14511807:  249:    popPriorityQueue(&pq[qid[cur_node]]);
+ 14511807:  250:}
+        -:  251:
+  9844281:  252:void merge_pq(int node) {
+  9844281:  253:    int max_child = -1;
+ 24686733:  254:    for (int i = 0; i < child[node].size; i++) {
+ 14842452:  255:        if (max_child == -1 || sub[max_child] < sub[child[node].data[i]]) {
+ 11741589:  256:            max_child = child[node].data[i];
+        -:  257:        }
+        -:  258:    }
+  9844281:  259:    qid[node] = qid[max_child];
+  9844281:  260:    PriorityQueue* cur_pq = &pq[qid[node]];
+ 24686733:  261:    for (int i = 0; i < child[node].size; i++) {
+ 14842452:  262:        if (child[node].data[i] == max_child) continue;
+  4998171:  263:        PriorityQueue* child_pq = &pq[qid[child[node].data[i]]];
+ 10977153:  264:        while (!emptyPriorityQueue(child_pq)) {
+  5978982:  265:            pushPriorityQueue(cur_pq, topPriorityQueue(child_pq));
+  5978982:  266:            popPriorityQueue(child_pq);
+        -:  267:        }
+        -:  268:    }
+  9844281:  269:}
+        -:  270:
+ 14842455:  271:void dfs(int node) {
+ 14842455:  272:    HArc* cur = &h[node];
+ 14842455:  273:    sub[node] = 1;
+ 14842455:  274:    if (child[node].size == 0) {
+  4998174:  275:        qid[node] = ++n_pqs;
+  4998174:  276:        cur->den = cur->base;
+  4998174:  277:        cur->num = (ll)w[cur->low] * (cur->den + cur->mul - get_mn_mul(node));
+  4998174:  278:        add_arc(node, cur);
+  4998174:  279:        return;
+        -:  280:    }
+  9844281:  281:    cur->den = cur->base;
+ 24686733:  282:    for (int i = 0; i < child[node].size; i++) {
+ 14842452:  283:        dfs(child[node].data[i]);
+ 14842452:  284:        sub[node] += sub[child[node].data[i]];
+ 14842452:  285:        cur->den -= h[child[node].data[i]].base;
+        -:  286:    }
+  9844281:  287:    cur->num = (ll)w[cur->low] * (cur->den + cur->mul - get_mn_mul(node));
+  9844281:  288:    merge_pq(node);
+  9844281:  289:    PriorityQueue* cur_pq = &pq[qid[node]];
+ 14872041:  290:    while (!emptyPriorityQueue(cur_pq) && topPriorityQueue(cur_pq).num / topPriorityQueue(cur_pq).den >= w[cur->low]) {
+  5027760:  291:        HArc hm = topPriorityQueue(cur_pq);
+  5027760:  292:        cur->den += hm.den;
+  5027760:  293:        remove_arc(node);
+  5027760:  294:        cur->num = (ll)w[cur->low] * (cur->den + cur->mul - get_mn_mul(node));
+        -:  295:    }
+ 19328328:  296:    while (!emptyPriorityQueue(cur_pq) && cur->num / cur->den <= topPriorityQueue(cur_pq).num / topPriorityQueue(cur_pq).den) {
+  9484047:  297:        HArc hm = topPriorityQueue(cur_pq);
+  9484047:  298:        cur->den += hm.den;
+  9484047:  299:        remove_arc(node);
+  9484047:  300:        cur->num += hm.num;
+        -:  301:    }
+  9844281:  302:    add_arc(node, cur);
+        -:  303:}
+        -:  304:
+        3:  305:ll getans() {
+        3:  306:    dfs(1);
+        3:  307:    ll ans = 0;
+        3:  308:    PriorityQueue* cur_pq = &pq[qid[1]];
+   330651:  309:    while (!emptyPriorityQueue(cur_pq)) {
+   330648:  310:        ans += topPriorityQueue(cur_pq).num;
+   330648:  311:        popPriorityQueue(cur_pq);
+        -:  312:    }
+        3:  313:    return ans;
+        -:  314:}
+        -:  315:
+        3:  316:void init(int size) {
+        3:  317:    w = (ll*)malloc((size + 2) * sizeof(ll));  // Extra space for w[n+1]
+        3:  318:    CP = (ll*)malloc((size + 2) * sizeof(ll));
+        3:  319:    h = (HArc*)malloc((size + 2) * sizeof(HArc));
+        3:  320:    sub = (int*)malloc((size + 2) * sizeof(int));
+        3:  321:    qid = (int*)malloc((size + 2) * sizeof(int));
+        -:  322:
+        3:  323:    if (!w || !CP || !h || !sub || !qid) {
+    #####:  324:        printf("Memory allocation failed\n");
+    #####:  325:        exit(1);
+        -:  326:    }
+        -:  327:
+        3:  328:    memset(w, 0, (size + 2) * sizeof(ll));
+        3:  329:    memset(CP, 0, (size + 2) * sizeof(ll));
+        3:  330:    memset(sub, 0, (size + 2) * sizeof(int));
+        3:  331:    memset(qid, 0, (size + 2) * sizeof(int));
+        -:  332:
+        3:  333:    n_arcs = n_pqs = 0;
+        -:  334:    
+        3:  335:    child = (IntVector*)malloc((size + 2) * sizeof(IntVector));
+        3:  336:    pq = (PriorityQueue*)malloc((size + 2) * sizeof(PriorityQueue));
+        3:  337:    con = (HArcVector*)malloc((size + 2) * sizeof(HArcVector));
+        -:  338:
+        3:  339:    if (!child || !pq || !con) {
+    #####:  340:        printf("Memory allocation failed\n");
+    #####:  341:        exit(1);
+        -:  342:    }
+        -:  343:
+ 15000009:  344:    for (int i = 0; i < size + 2; i++) {
+ 15000006:  345:        initIntVector(&child[i]);
+ 15000006:  346:        initPriorityQueue(&pq[i]);
+ 15000006:  347:        initHArcVector(&con[i]);
+        -:  348:    }
+        -:  349:
+        3:  350:}
+        -:  351:
+        -:  352:
+        3:  353:void input(ll arr[], int size) {
+        3:  354:    n = size;
+ 15000003:  355:    for (int i = 1; i <= n; i++) {
+ 15000000:  356:        w[i] = arr[i - 1];
+        -:  357:    }
+        3:  358:}
+        -:  359:
+        3:  360:void cleanup(int size) {
+        3:  361:    free(w);
+        3:  362:    free(CP);
+        3:  363:    free(h);
+        3:  364:    free(sub);
+        3:  365:    free(qid);
+        -:  366:
+ 15000009:  367:    for (int i = 0; i < size + 2; i++) {
+ 15000006:  368:        free(child[i].data);
+ 15000006:  369:        free(pq[i].data);
+ 15000006:  370:        free(con[i].data);
+        -:  371:    }
+        -:  372:
+        3:  373:    free(child);
+        3:  374:    free(pq);
+        3:  375:    free(con);
+        3:  376:}
+        -:  377:
+        3:  378:ll solve(ll arr[], int size) {
+       3*:  379:    if (size < 2) return 0;
+       3*:  380:    if (size == 2) return arr[0] * arr[1];
+        -:  381:
+        3:  382:    init(size);
+        3:  383:    input(arr, size);
+        3:  384:    prepare(size);
+        -:  385:
+        3:  386:    int (*lst)[2] = (int (*)[2])malloc(size * sizeof(int[2]));
+        -:  387:    int lst_size;
+        -:  388:
+        3:  389:    one_sweep(lst, &lst_size, size);
+        3:  390:    build_tree(lst, lst_size);
+        3:  391:    free(lst);
+        -:  392:
+        3:  393:    ll ans = getans();
+        3:  394:    cleanup(size);
+        -:  395:
+        3:  396:    return ans;
+        -:  397:}
+        -:  398:
+        -:  399:
+        3:  400:int main() {
+        -:  401:    //ll arr[] = {30, 35, 15, 5, 10, 20};
+        3:  402:    ll *arr = (ll*) calloc(testsize, sizeof(ll));
+        3:  403:    if(!arr) {
+    #####:  404:      printf("Calloc for Input Array Failed\n");
+    #####:  405:      return -1;
+        -:  406:    }
+ 15000003:  407:    for(int i=0;i<testsize;i++) {
+ 15000000:  408:      arr[i] = rand()% (100 + 1 - 5) + 5;
+        -:  409:    }
+        3:  410:    int size = testsize;
+        -:  411:    if(DEBUG) for(int i=0;i<testsize;i++) printf("%lld, ", arr[i]);
+        3:  412:    long long sol = solve(arr, size);
+        -:  413:    if(DEBUG) printf("\nMin Ops: %lld\n", sol);
+        3:  414:    printf("Finished Execution\n");
+        3:  415:    free(arr);
+        3:  416:    return 0;
+        -:  417:}

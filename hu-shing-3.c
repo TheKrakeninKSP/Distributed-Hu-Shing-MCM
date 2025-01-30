@@ -15,6 +15,9 @@
 
 //gcc hu-shing-3.c -pg -o hu-shing-3 && ./hu-shing-3 && gprof hu-shing-3 gmon.out > hsc3_gprof_report.txt && cat hsc3_gprof_report.txt
 
+//gcc hu-shing-3.c -fprofile-arcs -ftest-coverage -o hu-shing-3 && ./hu-shing-3 && gcov hu-shing-3 && cat hu-shing-3.c.gcov
+
+
 typedef struct {
     int id, u, v, low;
     ll base, mul, num, den;
