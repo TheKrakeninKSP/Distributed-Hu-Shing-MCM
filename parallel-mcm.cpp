@@ -1,6 +1,6 @@
-//g++ hu-shing.cpp -pg -o hu-shing && ./hu-shing && gprof hu-shing gmon.out > gprof_report.txt && cat gprof_report.txt
-
 #include <bits/stdc++.h>
+#include <omp.h>
+
 using namespace std;
 
 #define FILENAME "inp.txt"
@@ -18,7 +18,7 @@ namespace HuShing {
 	using pii=pair<int,int>;
 	/* About Polygon */
 	int n;
-	vector<ll> w, CP;
+	vector<ll> w, CP; 
   
 	/* About H-arcs */
 	struct HArc {
