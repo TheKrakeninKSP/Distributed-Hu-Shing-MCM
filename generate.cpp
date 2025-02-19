@@ -10,7 +10,7 @@
 using namespace std;
 
 #define FILENAME "inp.txt"
-#define N 50 * 1000 * 1000
+#define N 40 * 1000 * 1000
 
 void generate_sequence() {
     std::ofstream file(FILENAME);
