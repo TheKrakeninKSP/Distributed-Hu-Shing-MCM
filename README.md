@@ -53,7 +53,3 @@ The CUDA implementation is expected to significantly outperform the OpenMP versi
 |----------|-------------------------|
 | OpenMP   | X.XX seconds            |
 | CUDA     | Y.YY seconds            |
-
-
-## License
-This project is licensed under the MIT License. See the `LICENSE` file for details.
