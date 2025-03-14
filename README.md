@@ -3,13 +3,15 @@
 This repository contains implementations of **Hu-Shing's Method for Matrix Chain Multiplication (MCM)** in two parallel computing approaches:
 
 1. **Approach 1:** OpenMP-based parallel implementation in C++.
-2. **Approach 2:** CUDA-based parallel implementation in C++.
+2. **Approach 2:** pThread-based parallel implementation in C++.
+3. **Approach 3:** CUDA-based parallel implementation in Cuda-C++.
 
 ## Overview
 Matrix Chain Multiplication (MCM) aims to find the optimal order of multiplying a sequence of matrices to minimize computational cost. **Hu-Shing's Algorithm** provides an efficient way to approximate the optimal solution by decomposing the matrix sequence hierarchically.
 
 This repository contains:
 - **C++ OpenMP Implementation:** Uses OpenMP for parallel processing of matrix chain segments.
+- **pThreads Implementation:** Uses POSIX Thread library for distributed computing of matrix chain segments.
 - **CUDA Implementation:** Uses GPU acceleration to further speed up computations.
 
 ## Features
@@ -17,23 +19,6 @@ This repository contains:
 - **Parallelized** computation for large matrix chains.
 - **Optimized memory usage** to handle large-scale matrix multiplications.
 
-## Requirements
-### For OpenMP Implementation:
-- GCC or Clang with OpenMP support.
-- CMake (if building with CMake).
-- Linux/macOS/Windows (with MinGW for Windows).
-
-### For CUDA Implementation:
-- NVIDIA GPU with CUDA Compute Capability 3.0 or higher.
-- NVIDIA CUDA Toolkit.
-- CMake (optional for easier build configuration).
-
-## Installation
-### Clone Repository
-```bash
-git clone https://github.com/yourusername/Hu-Shing-MCM.git
-cd Hu-Shing-MCM
-```
 
 ### Build OpenMP Version
 ```bash
