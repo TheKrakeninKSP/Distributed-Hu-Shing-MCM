@@ -38,3 +38,6 @@ The CUDA implementation is expected to significantly outperform the OpenMP versi
 |----------|-------------------------|
 | OpenMP   | X.XX seconds            |
 | CUDA     | Y.YY seconds            |
+
+## Initial Hu-Shing Algorithm
+https://github.com/junodeveloper/Hu-Shing
