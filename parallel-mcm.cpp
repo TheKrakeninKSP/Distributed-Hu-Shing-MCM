@@ -332,48 +332,63 @@ namespace HuShing {
         one_sweep();
         ll sol = getans();
         
-        printf("%lld\n", sol);
+        //printf("%lld\n", sol);
         return sol;
     }
 }
 
 void benchmark(long long int(*func)(const std::vector<long long>&, int), std::vector<long long>& A, std::string method) {
-    //std::vector<int> thread_counts = {1, 2, 4, 6, 8, 10, 12, 16, 20, 32, 64};
-    std::vector<int> thread_counts = {1, 4, 8, 16, 20};
+    std::vector<int> thread_counts = {1, 2, 4, 6, 8, 10, 12, 16, 20, 32, 64};
     int num_tests = thread_counts.size();
+    
     std::vector<double> times(num_tests);
+    std::vector<long long> answers(num_tests);
     double base_time;
+    long long base_answer;
     
     std::cout<<method<<"\n";
-    printf("Threads\tTime (s)\n");
+    printf("Threads\tTime (s)\t Answer\n");
     for (int i = 0; i < num_tests; i++) {
         int num_threads = thread_counts[i];
         double total_time = 0.0;
+        double total_answer = 0;
         
         for (int j = 0; j < NUM_TRIALS; j++) {
             double start = omp_get_wtime();
             
             //Test segment code
-            func(A, num_threads);
+            total_answer += func(A, num_threads);
             
             //End of Test segment
             double end = omp_get_wtime();
             total_time += (end - start);
         }
         times[i] = total_time / NUM_TRIALS;
-        if (i == 0) base_time = times[i]; // Time with 1 thread
-        printf("%d\t%.6f\n", num_threads, times[i]);
+        answers[i] = total_answer / NUM_TRIALS;
+        if (i == 0) {
+            base_time = times[i]; // Time with single thread
+            base_answer = answers[i]; // Answer with single threads
+        }
+        printf("%d\t%.6f\t%lld\n", num_threads, times[i], answers[i]);
     }
 
     // Speedup calculation
     std::vector<double> parallel_fracs(num_tests);
     std::cout<<"\nSpeedup vs Processors:\n";
-    std::cout<<"Threads\tSpeedup\n";
+    std::cout<<"Threads\tSpeedup\t\tAnswer to MCM\tDifference\tDifference(%)\n";
+    
     for (int i = 0; i < num_tests; i++) {
         // Estimate Parallelization Fraction (Amdahl's Law)
         if(i>0) parallel_fracs[i] = ((times[i] / base_time) - 1.0) / ((1.0 / thread_counts[i]) - 1.0);
-        printf("%d\t%.6f\t", thread_counts[i], base_time / times[i]);
-        //printf("%.6f, ", base_time / times[i]);
+
+	// Calculate difference from optimal (%)
+	int diff = 0;
+	float diffp;
+	if(i>0) {
+	    diff = abs(answers[i] - answers[0]);
+	    diffp = ( (float)diff / answers[0] ) * 100;
+	}
+        printf("%d\t%.6f\t%lld\t%d\t\t%.4f%%\t\t", thread_counts[i], base_time / times[i], answers[i], diff, diffp);
         printf("Parallelization Fraction (Amdahl's Law): %.3f\n", parallel_fracs[i]);
     }
     
@@ -385,6 +400,6 @@ int main() {
         vector<long long> arr;
         read_data(arr);
 	
-	benchmark(HuShing::solve, arr, "Parallel MCM");
+	benchmark(HuShing::solve, arr, "Parallel MCM with OpenMP");
 	return 0;
 }
